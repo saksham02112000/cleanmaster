@@ -89,7 +89,7 @@ DATABASES = {
 }
 
 
-# if DEBUG == True:
+# if DEBUG is True:
 #     DATABASES = {
 #         'default': {
 #             'ENGINE': 'django.db.backends.sqlite3',
