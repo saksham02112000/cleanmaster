@@ -11,6 +11,18 @@ scaler = pickle.load(open(settings.BASE_DIR / 'Responder/ML/scaler', 'rb'))
 reg1 = pickle.load(open(settings.BASE_DIR / 'Responder/ML/rf', 'rb'))
 log = pickle.load(open(settings.BASE_DIR / 'Responder/ML/LogisticModel', 'rb'))
 
+indexing = {
+    "0": "Hostel-M",
+    "1": "Hostel-K",
+    "2": "Hostel-L",
+    "3": "COS",
+    "4": "Hostel-H",
+    "5": "H-block",
+    "6": "Old Library",
+    "7": "Library",
+    "8": "Jaggi"
+}
+
 
 # ML model
 
@@ -19,13 +31,19 @@ def func(dist, gas1, gas2, gas3):
     t = scaler.transform([[dist, gas1, gas2, gas3]])
     a = reg1.predict(t)[0]
     b = log.predict(t)[0]
+    if dist >= 85:
+        return ["90% capacity reached", b, 0]
+    if b == True:
+        return ["Gas Exceeds limits", b, 0]
+    else:
+        return ["Dustbin Safe to use till ", b, a]
+
+
+def dust_func(dist, gas1, gas2, gas3):
+    t = scaler.transform([[dist, gas1, gas2, gas3]])
+    a = reg1.predict(t)[0]
+    b = log.predict(t)[0]
     return [b, a]
-    # if dist >= 85:
-    #     return ["90% capacity reached", b, 0]
-    # if b == True:
-    #     return ["Gas Exceeds limits", b, 0]
-    # else:
-    #     return ["Dustbin Safe to use till ", b, a]
 
 
 # Global Variables
@@ -106,20 +124,9 @@ def makematrix(points):
 def trav(request):
     if request.method == "GET":
         try:
-            route_v = ["0", "1", "2", "3", "4", "5", "6", "7", "8"]
-            indexing = {
-                "0": "Hostel-M",
-                "1": "Hostel-K",
-                "2": "Hostel-L",
-                "3": "COS",
-                "4": "Hostel-H",
-                "5": "H-block",
-                "6": "Old Library",
-                "7": "Library",
-                "8": "Jaggi"
-            }
-            makematrix([0, 1, 2, 3, 4, 5, 6, 7, 8])
-            return JsonResponse({"route": route_v, "matrix": dist_matrix, "index": indexing})
+            route_v = ["Hostel-M", "Hostel-K", "Hostel-L", "H-block", "Old Library", "Library", "Jaggi", "Hostel-H", "COS"]
+
+            return JsonResponse({"route": route_v})
         except:
             raise Exception("Route not found")
 
@@ -154,24 +161,32 @@ def return_dummy_set():
 def dustbin_status(request):
     if request.method == "GET":
         try:
-            dummy_set = [[1, 8.96767778131896, 87.2082125938314, 16.8379036490526, 28.9336012739938],
+            dataset = [[1, 8.96767778131896, 10.2082125938314, 16.8379036490526, 28.9336012739938],
                          [2, 80.1731393629776, 79.9021917953746, 55.7972793990095, 27.8783945396686],
                          [3, 91.7859853064276, 85.6312342447822, 11.6264354258183, 90.6243300823676],
                          [4, 59.9047105793823, 13.4340731486214, 94.3540378041737, 56.0223073260305],
-                         [5, 73.3642917784595, 7.71140813495834, 14.5931937517691, 57.0737404042271],
+                         [5, 20.3642917784595, 7.71140813495834, 14.5931937517691, 57.0737404042271],
                          [6, 75.3073848672983, 80.8028543234019, 75.3044913533533, 34.6208512715647],
                          [7, 8.58945970059132, 85.9084758621924, 92.1673184105358, 88.715621973651],
                          [8, 53.0723312578271, 36.1803311105915, 46.6428797004184, 65.7062893233451],
                          [9, 0.40813186569465, 14.8602870555449, 38.0140059436064, 73.7807156605876]]
             results = {}
+            finalresults = {}
 
             # def func(dist, gas1, gas2, gas3):
-            for i in range(len(dummy_set)):
-                print(dummy_set[i][1], dummy_set[i][2], dummy_set[i][3], dummy_set[i][4])
-                ind_res = func(dummy_set[i][1], dummy_set[i][2], dummy_set[i][3], dummy_set[i][4])
-                print(type(ind_res[0]))
-                results[dummy_set[i][0]] = bool(ind_res[0])
-            return JsonResponse({"status": results, "data": dummy_set}, safe=False)
+            for i in range(len(dataset)):
+                print(dataset[i][1], dataset[i][2], dataset[i][3], dataset[i][4])
+                dust_text = func(dataset[i][1], dataset[i][2], dataset[i][3], dataset[i][4])
+                finalresults[dataset[i][0]] = {
+                    "status": bool(dust_text[1]),
+                    "dist_reading": round(dataset[i][1], 2),
+                    "mq2reading": round(dataset[i][2], 2),
+                    "mq3reading": round(dataset[i][3], 2),
+                    "mq4reading": round(dataset[i][4], 2),
+                    "text": dust_text[0],
+                    "name": indexing[str(i)]
+                }
+            return JsonResponse({"finalresult": finalresults}, safe=False)
 
         except:
             raise Exception("Status not received")
@@ -181,82 +196,89 @@ def demo_ml(request):
     if request.method == "GET":
         try:
             ml = {
-                "status": {
-                    "1": "true",
-                    "2": "true",
-                    "3": "true",
-                    "4": "true",
-                    "5": "true",
-                    "6": "true",
-                    "7": "true",
-                    "8": "true",
-                    "9": "true"
+              "finalresult": {
+                "1": {
+                  "status": "false",
+                  "dist_reading": 8.97,
+                  "mq2reading": 10.21,
+                  "mq3reading": 16.84,
+                  "mq4reading": 28.93,
+                  "text": "Dustbin Safe to use till ",
+                  "name": "Hostel-M"
                 },
-                "data": [
-                    [
-                        1,
-                        8.96767778131896,
-                        87.2082125938314,
-                        16.8379036490526,
-                        28.9336012739938
-                    ],
-                    [
-                        2,
-                        80.1731393629776,
-                        79.9021917953746,
-                        55.7972793990095,
-                        27.8783945396686
-                    ],
-                    [
-                        3,
-                        91.7859853064276,
-                        85.6312342447822,
-                        11.6264354258183,
-                        90.6243300823676
-                    ],
-                    [
-                        4,
-                        59.9047105793823,
-                        13.4340731486214,
-                        94.3540378041737,
-                        56.0223073260305
-                    ],
-                    [
-                        5,
-                        73.3642917784595,
-                        7.71140813495834,
-                        14.5931937517691,
-                        57.0737404042271
-                    ],
-                    [
-                        6,
-                        75.3073848672983,
-                        80.8028543234019,
-                        75.3044913533533,
-                        34.6208512715647
-                    ],
-                    [
-                        7,
-                        8.58945970059132,
-                        85.9084758621924,
-                        92.1673184105358,
-                        88.715621973651
-                    ],
-                    [
-                        8,
-                        53.0723312578271,
-                        36.1803311105915,
-                        46.6428797004184,
-                        65.7062893233451
-                    ],
-                    [
-                        9,
-                        0.40813186569465,
-                        14.8602870555449,
-                        38.0140059436064,
-                        73.7807156605876
-                    ]
-                ]
+                "2": {
+                  "status": "true",
+                  "dist_reading": 80.17,
+                  "mq2reading": 79.9,
+                  "mq3reading": 55.8,
+                  "mq4reading": 27.88,
+                  "text": "Gas Exceeds limits",
+                  "name": "Hostel-K"
+                },
+                "3": {
+                  "status": "true",
+                  "dist_reading": 91.79,
+                  "mq2reading": 85.63,
+                  "mq3reading": 11.63,
+                  "mq4reading": 90.62,
+                  "text": "90% capacity reached",
+                  "name": "Hostel-L"
+                },
+                "4": {
+                  "status": "true",
+                  "dist_reading": 59.9,
+                  "mq2reading": 13.43,
+                  "mq3reading": 94.35,
+                  "mq4reading": 56.02,
+                  "text": "Gas Exceeds limits",
+                  "name": "COS"
+                },
+                "5": {
+                  "status": "false",
+                  "dist_reading": 20.36,
+                  "mq2reading": 7.71,
+                  "mq3reading": 14.59,
+                  "mq4reading": 57.07,
+                  "text": "Dustbin Safe to use till ",
+                  "name": "Hostel-H"
+                },
+                "6": {
+                  "status": "true",
+                  "dist_reading": 75.31,
+                  "mq2reading": 80.8,
+                  "mq3reading": 75.3,
+                  "mq4reading": 34.62,
+                  "text": "Gas Exceeds limits",
+                  "name": "H-block"
+                },
+                "7": {
+                  "status": "true",
+                  "dist_reading": 8.59,
+                  "mq2reading": 85.91,
+                  "mq3reading": 92.17,
+                  "mq4reading": 88.72,
+                  "text": "Gas Exceeds limits",
+                  "name": "Old Library"
+                },
+                "8": {
+                  "status": "true",
+                  "dist_reading": 53.07,
+                  "mq2reading": 36.18,
+                  "mq3reading": 46.64,
+                  "mq4reading": 65.71,
+                  "text": "Gas Exceeds limits",
+                  "name": "Library"
+                },
+                "9": {
+                  "status": "true",
+                  "dist_reading": 0.41,
+                  "mq2reading": 14.86,
+                  "mq3reading": 38.01,
+                  "mq4reading": 73.78,
+                  "text": "Gas Exceeds limits",
+                  "name": "Jaggi"
+                }
+              }
             }
             return JsonResponse(ml)
         except:
