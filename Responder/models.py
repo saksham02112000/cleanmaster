@@ -11,7 +11,7 @@ class DevicePings(models.Model):
     mq4reading = models.CharField(max_length=1024, blank=True, null=True)
 
 
-class DeviseResponse(models.Model):
+class DeviceResponse(models.Model):
     client_id = models.CharField(max_length=1024)
     next_response = models.CharField(max_length=1024, default='close')
 

@@ -8,6 +8,7 @@ urlpatterns = [
     path('path', trav),
     path('masterreset', masterreset),
     path('status', dustbin_status),
-    path('status_demo', demo_ml)
+    path('status_demo', demo_ml),
+    path('handler', handler)
 
 ]

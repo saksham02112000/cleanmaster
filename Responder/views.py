@@ -1,8 +1,10 @@
+import sys
+
 from django.http import JsonResponse
 from django.shortcuts import render, HttpResponse
 import json
 from django.views.decorators.csrf import csrf_exempt
-from .models import DevicePings
+from .models import DevicePings, DeviceResponse
 import pickle
 import copy
 from django.conf import settings
@@ -64,25 +66,21 @@ finalpath = []
 
 
 def handler(request):
-    if request.method == "POST":
+    if request.method == 'POST':
         print(request.body)
         try:
-            parse = json.load(request)
-            print(parse)
-        except:
-            raise Exception("Not able to parse")
+            parsed = json.loads(request.body)
+            DevicePings.objects.create(client_id=parsed['client'], dist_reading=parsed['dist'],
+                                       mq2reading=parsed['mq2'], mq3reading=parsed['mq7'], mq4reading=parsed['mq8'])
 
-    return HttpResponse("Welcome to IOT")
+            obj, _ = DeviceResponse.objects.get_or_create(client_id=parsed['client'])
 
+            return HttpResponse(obj.next_response)
+        except Exception as e:
+            print(e)
+            return HttpResponse("Failed to parse body")
 
-def xyz(request):
-    if request.method == "POST":
-        print(request.body)
-        try:
-            client_id = request.body["client_id"]
-            print(client_id)
-        except:
-            raise Exception("Not able to parse")
+    return HttpResponse("Welcome to the Iot based waste management system for smart cities")
 
 
 def shortest_path(graph, v, currPos, n, count, cost, path):
@@ -90,6 +88,7 @@ def shortest_path(graph, v, currPos, n, count, cost, path):
         answer.append(cost + graph[currPos][0])
         finalpath.append(copy.deepcopy(path))
         return
+
     for i in range(n):
         if v[i] == False and graph[currPos][i]:
             # Mark as visited
@@ -124,7 +123,8 @@ def makematrix(points):
 def trav(request):
     if request.method == "GET":
         try:
-            route_v = ["Hostel-M", "Hostel-K", "Hostel-L", "H-block", "Old Library", "Library", "Jaggi", "Hostel-H", "COS"]
+            route_v = ["Hostel-M", "Hostel-K", "Hostel-L", "H-block", "Old Library", "Library", "Jaggi", "Hostel-H",
+                       "COS"]
 
             return JsonResponse({"route": route_v})
         except:
@@ -162,14 +162,14 @@ def dustbin_status(request):
     if request.method == "GET":
         try:
             dataset = [[1, 8.96767778131896, 10.2082125938314, 16.8379036490526, 28.9336012739938],
-                         [2, 80.1731393629776, 79.9021917953746, 55.7972793990095, 27.8783945396686],
-                         [3, 91.7859853064276, 85.6312342447822, 11.6264354258183, 90.6243300823676],
-                         [4, 59.9047105793823, 13.4340731486214, 94.3540378041737, 56.0223073260305],
-                         [5, 20.3642917784595, 7.71140813495834, 14.5931937517691, 57.0737404042271],
-                         [6, 75.3073848672983, 80.8028543234019, 75.3044913533533, 34.6208512715647],
-                         [7, 8.58945970059132, 85.9084758621924, 92.1673184105358, 88.715621973651],
-                         [8, 53.0723312578271, 36.1803311105915, 46.6428797004184, 65.7062893233451],
-                         [9, 0.40813186569465, 14.8602870555449, 38.0140059436064, 73.7807156605876]]
+                       [2, 80.1731393629776, 79.9021917953746, 55.7972793990095, 27.8783945396686],
+                       [3, 91.7859853064276, 85.6312342447822, 11.6264354258183, 90.6243300823676],
+                       [4, 59.9047105793823, 13.4340731486214, 94.3540378041737, 56.0223073260305],
+                       [5, 20.3642917784595, 7.71140813495834, 14.5931937517691, 57.0737404042271],
+                       [6, 75.3073848672983, 80.8028543234019, 75.3044913533533, 34.6208512715647],
+                       [7, 8.58945970059132, 85.9084758621924, 92.1673184105358, 88.715621973651],
+                       [8, 53.0723312578271, 36.1803311105915, 46.6428797004184, 65.7062893233451],
+                       [9, 0.40813186569465, 14.8602870555449, 38.0140059436064, 73.7807156605876]]
             results = {}
             finalresults = {}
 
@@ -192,93 +192,100 @@ def dustbin_status(request):
             raise Exception("Status not received")
 
 
+# def send_active_list():
+#     list=[]
+#     dbdata = DevicePings.objects.all()
+#     for id in range(9):
+#         current_dustbin = dbdata.objects.get(client_id=id)
+#         
+
 def demo_ml(request):
     if request.method == "GET":
         try:
             ml = {
-              "finalresult": {
-                "1": {
-                  "status": "false",
-                  "dist_reading": 8.97,
-                  "mq2reading": 10.21,
-                  "mq3reading": 16.84,
-                  "mq4reading": 28.93,
-                  "text": "Dustbin Safe to use till ",
-                  "name": "Hostel-M"
-                },
-                "2": {
-                  "status": "true",
-                  "dist_reading": 80.17,
-                  "mq2reading": 79.9,
-                  "mq3reading": 55.8,
-                  "mq4reading": 27.88,
-                  "text": "Gas Exceeds limits",
-                  "name": "Hostel-K"
-                },
-                "3": {
-                  "status": "true",
-                  "dist_reading": 91.79,
-                  "mq2reading": 85.63,
-                  "mq3reading": 11.63,
-                  "mq4reading": 90.62,
-                  "text": "90% capacity reached",
-                  "name": "Hostel-L"
-                },
-                "4": {
-                  "status": "true",
-                  "dist_reading": 59.9,
-                  "mq2reading": 13.43,
-                  "mq3reading": 94.35,
-                  "mq4reading": 56.02,
-                  "text": "Gas Exceeds limits",
-                  "name": "COS"
-                },
-                "5": {
-                  "status": "false",
-                  "dist_reading": 20.36,
-                  "mq2reading": 7.71,
-                  "mq3reading": 14.59,
-                  "mq4reading": 57.07,
-                  "text": "Dustbin Safe to use till ",
-                  "name": "Hostel-H"
-                },
-                "6": {
-                  "status": "true",
-                  "dist_reading": 75.31,
-                  "mq2reading": 80.8,
-                  "mq3reading": 75.3,
-                  "mq4reading": 34.62,
-                  "text": "Gas Exceeds limits",
-                  "name": "H-block"
-                },
-                "7": {
-                  "status": "true",
-                  "dist_reading": 8.59,
-                  "mq2reading": 85.91,
-                  "mq3reading": 92.17,
-                  "mq4reading": 88.72,
-                  "text": "Gas Exceeds limits",
-                  "name": "Old Library"
-                },
-                "8": {
-                  "status": "true",
-                  "dist_reading": 53.07,
-                  "mq2reading": 36.18,
-                  "mq3reading": 46.64,
-                  "mq4reading": 65.71,
-                  "text": "Gas Exceeds limits",
-                  "name": "Library"
-                },
-                "9": {
-                  "status": "true",
-                  "dist_reading": 0.41,
-                  "mq2reading": 14.86,
-                  "mq3reading": 38.01,
-                  "mq4reading": 73.78,
-                  "text": "Gas Exceeds limits",
-                  "name": "Jaggi"
+                "finalresult": {
+                    "1": {
+                        "status": "false",
+                        "dist_reading": 8.97,
+                        "mq2reading": 10.21,
+                        "mq3reading": 16.84,
+                        "mq4reading": 28.93,
+                        "text": "Dustbin Safe to use till ",
+                        "name": "Hostel-M"
+                    },
+                    "2": {
+                        "status": "true",
+                        "dist_reading": 80.17,
+                        "mq2reading": 79.9,
+                        "mq3reading": 55.8,
+                        "mq4reading": 27.88,
+                        "text": "Gas Exceeds limits",
+                        "name": "Hostel-K"
+                    },
+                    "3": {
+                        "status": "true",
+                        "dist_reading": 91.79,
+                        "mq2reading": 85.63,
+                        "mq3reading": 11.63,
+                        "mq4reading": 90.62,
+                        "text": "90% capacity reached",
+                        "name": "Hostel-L"
+                    },
+                    "4": {
+                        "status": "true",
+                        "dist_reading": 59.9,
+                        "mq2reading": 13.43,
+                        "mq3reading": 94.35,
+                        "mq4reading": 56.02,
+                        "text": "Gas Exceeds limits",
+                        "name": "COS"
+                    },
+                    "5": {
+                        "status": "false",
+                        "dist_reading": 20.36,
+                        "mq2reading": 7.71,
+                        "mq3reading": 14.59,
+                        "mq4reading": 57.07,
+                        "text": "Dustbin Safe to use till ",
+                        "name": "Hostel-H"
+                    },
+                    "6": {
+                        "status": "true",
+                        "dist_reading": 75.31,
+                        "mq2reading": 80.8,
+                        "mq3reading": 75.3,
+                        "mq4reading": 34.62,
+                        "text": "Gas Exceeds limits",
+                        "name": "H-block"
+                    },
+                    "7": {
+                        "status": "true",
+                        "dist_reading": 8.59,
+                        "mq2reading": 85.91,
+                        "mq3reading": 92.17,
+                        "mq4reading": 88.72,
+                        "text": "Gas Exceeds limits",
+                        "name": "Old Library"
+                    },
+                    "8": {
+                        "status": "true",
+                        "dist_reading": 53.07,
+                        "mq2reading": 36.18,
+                        "mq3reading": 46.64,
+                        "mq4reading": 65.71,
+                        "text": "Gas Exceeds limits",
+                        "name": "Library"
+                    },
+                    "9": {
+                        "status": "true",
+                        "dist_reading": 0.41,
+                        "mq2reading": 14.86,
+                        "mq3reading": 38.01,
+                        "mq4reading": 73.78,
+                        "text": "Gas Exceeds limits",
+                        "name": "Jaggi"
+                    }
                 }
-              }
             }
             return JsonResponse(ml)
         except:
@@ -305,42 +312,34 @@ def masterreset(request):
         except:
             raise Exception("masterrreset failed")
 
-# def delete_everything(self):
-#     Reporter.objects.all().delete()
-#
-# def drop_table(self):
-#     cursor = connection.cursor()
-#     table_name = self.model._meta.db_table
-#     sql = "DROP TABLE %s;" % (table_name, )
-#     cursor.execute(sql)
 
-
-# def algorithm(self, source, destination):
-
-
-# func sab(self, ):
-#     return shortest adge;
-
-# void
-# postRefreshML():
+## Code of TSP using DP
+# n = 9
 #
-# void
-# postRefresh():
-# postRefreshMl()
-# func(, newSrc)
+# visited_all = (1 << n) - 1
+# dp = [[-1] * n] * (1 << n)
+# path = [[-1] * n] * (1 << n)
 #
-# void
-# picked(x):
-# x.dustbins.stats = 0
 #
-# model
-# dustbins:
-# dist, gas1, gas2, Dust_number(!id), name
+# def tsp(mask, pos):
+#     if mask == visited_all:
+#         return dist_matrix[pos][0]
 #
-# void
-# masterReset(x):
-# // refill
-# dummy
-# garbage
-# clearExistingData()
-# stats = readJson()
+#     # print(mask, pos)
+#     # print(mask | (1 << pos))
+#     if dp[mask][pos] != -1:
+#         return dp[mask][pos]
+#
+#     ans = 999999999
+#     for city in range(n):
+#         if mask & (1 << city) == 0:  # city not visited
+#             path.append(city)
+#             newAns = dist_matrix[pos][city] + tsp(mask | (1 << city), city)
+#             ans = min(ans, newAns)
+#
+#     dp[mask][pos] = ans
+#     return dp[mask][pos]
+#
+#
+# print(tsp(1, 0))
+# print(dp)
